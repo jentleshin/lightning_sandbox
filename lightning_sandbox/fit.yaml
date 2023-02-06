@@ -1,0 +1,26 @@
+seed_everything: 42
+trainer:
+  max_epochs: 10
+  logger:
+    class_path: TensorBoardLogger
+    init_args:
+      save_dir: '.'
+      name: 'logs/fit_logs'
+      default_hp_metric: False
+  callbacks:
+    - class_path: ModelCheckpoint
+      init_args:
+        monitor: val_loss
+        mode: min
+    - class_path: EarlyStopping
+      init_args:
+        monitor: val_loss
+        mode: min
+        patience: 3
+data:
+  data_dir: '/content/data'
+  batch_size: 64 
+  num_workers: 1
+model:
+  learning_rate: 8.317637711026709e-05
+  output_dim: 128

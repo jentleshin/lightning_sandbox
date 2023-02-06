@@ -1,0 +1,5 @@
+batch_size: 64
+data_dir: /content/data
+learning_rate: 9.047880809755465e-05
+num_workers: 1
+output_dim: 128
