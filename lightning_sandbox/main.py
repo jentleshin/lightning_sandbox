@@ -5,6 +5,7 @@ import numpy as np
 # Modules
 from module.FullyConnected3 import FullyConnected3
 from module.AutoEncoder import AutoEncoder
+from module.VAE import VAE
 
 # Data_Modules
 from data_module.MNIST import MNIST
@@ -14,7 +15,7 @@ from data_module.CIFAR_IO import CIFAR_IO
 from callback.LogTestImageCallback import LogTestImageCallback
 
 def cli_main():
-  cli = LightningCLI(datamodule_class=CIFAR_IO)
+  cli = LightningCLI()
 
 def split_list(input_list, value):
   index = input_list.index(value)

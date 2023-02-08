@@ -1,0 +1,27 @@
+seed_everything: 23422
+trainer:
+  max_epochs: 1000
+  logger:
+    class_path: TensorBoardLogger
+    init_args:
+      save_dir: '.'
+      name: 'logs/VAE_CIFARIO/fit_logs'
+      default_hp_metric: False
+  callbacks:
+    - class_path: ModelCheckpoint
+      init_args:
+        monitor: val_negative_ELBO
+        mode: min
+    - class_path: EarlyStopping
+      init_args:
+        monitor: val_negative_ELBO
+        mode: min
+        patience: 3
+data:
+  data_dir: '/content/data'
+  batch_size: 512
+  num_workers: 1
+model:
+  learning_rate: 9.6453e-05
+  input_dim: 3
+  latent_dim: 128

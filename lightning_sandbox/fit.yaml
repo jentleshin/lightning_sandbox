@@ -1,11 +1,11 @@
 seed_everything: 42
 trainer:
-  max_epochs: 10
+  max_epochs: 1
   logger:
     class_path: TensorBoardLogger
     init_args:
       save_dir: '.'
-      name: 'logs/fit_logs'
+      name: 'logs/bit_logs'
       default_hp_metric: False
   callbacks:
     - class_path: ModelCheckpoint

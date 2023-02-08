@@ -22,6 +22,8 @@ class CIFAR_IO (pl.LightningDataModule):
       self.train_dataset, self.val_dataset = random_split(dataset, [49000,1000])
     elif stage == "test" or stage == None:
       self.test_dataset = datasets.CIFAR10(root=self.hparams.data_dir, train=False, transform=transform, download=False)
+    elif stage == "predict" or stage == None:
+      self.predict_dataset = datasets.CIFAR10(root=self.hparams.data_dir, train=False, transform=transform, download=False)
   
   def train_dataloader(self):
     return DataLoader(self.train_dataset, batch_size=self.hparams.batch_size, shuffle=True, num_workers=self.hparams.num_workers)
@@ -29,3 +31,5 @@ class CIFAR_IO (pl.LightningDataModule):
     return DataLoader(self.val_dataset, batch_size=self.hparams.batch_size, shuffle=False, num_workers=self.hparams.num_workers)
   def test_dataloader(self):
     return DataLoader(self.test_dataset, batch_size=self.hparams.batch_size, shuffle=False, num_workers=self.hparams.num_workers)
+  def predict_dataloader(self):
+    return DataLoader(self.predict_dataset, batch_size=self.hparams.batch_size, shuffle=True, num_workers=self.hparams.num_workers)
