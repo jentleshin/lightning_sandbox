@@ -37,7 +37,11 @@ class VAE (pl.LightningModule):
     super().__init__()
 
     self.save_hyperparameters()
-
+    
+    # buffers used to create prior_z
+    self.register_buffer("zero_mean", torch.zeros(self.hparams.latent_dim))
+    self.register_buffer("one_std", torch.ones(self.hparams.latent_dim))
+    
     self.encoder = nn.Sequential(
       EncoderModulo(self.hparams.input_dim,256,8),
       EncoderModulo(256,256,8),
@@ -61,7 +65,8 @@ class VAE (pl.LightningModule):
     )
     self.mean_decoder = nn.Sequential(
       DecoderModulo(256,256,8),
-      nn.ConvTranspose2d(256, self.hparams.input_dim, kernel_size=4, stride=2, padding=1)
+      nn.ConvTranspose2d(256, self.hparams.input_dim, kernel_size=4, stride=2, padding=1),
+      nn.Sigmoid() # image should have range [0..1]
     )
     self.lgvar_decoder = nn.Sequential(
       DecoderModulo(256,256,8),
@@ -89,9 +94,14 @@ class VAE (pl.LightningModule):
     mean_xhat, lgvar_xhat = self._get_mlv_decoder(z)
     dist_xhat = Normal(mean_xhat, (lgvar_xhat/2).exp())
 
-    prior_z = Normal(torch.zeros(self.hparams.latent_dim).to(x), torch.ones(self.hparams.latent_dim).to(x))
+    # KL-Divergence
+    prior_z = Normal(self.zero_mean, self.one_std)
     kl_term = kl_divergence(dist_z, prior_z).sum()
+    
+    # Negative log likelihood
     nll_term = F.gaussian_nll_loss(mean_xhat, x, lgvar_xhat.exp(), eps=1e-6, reduction="sum") # mathematically stable version of nll_loss
+    
+    # Negative ELBO
     n_ELBO = (kl_term + nll_term) / batch_size # loss per batch
     return n_ELBO
 
@@ -102,7 +112,7 @@ class VAE (pl.LightningModule):
     n_ELBO = self._shared_step(batch, batch_idx)
     metrics = {'train_negative_ELBO':n_ELBO, "hp/train_negative_ELBO": n_ELBO}
     self.log_dict(metrics)
-    return n_ELBO
+    return n_ELBO 
 
   def validation_step(self, batch, batch_idx):
     n_ELBO = self._shared_step(batch, batch_idx)
@@ -114,16 +124,29 @@ class VAE (pl.LightningModule):
     metrics = {'test_negative_ELBO':n_ELBO, "hp/test_negative_ELBO": n_ELBO}
     self.log_dict(metrics)
 
-  def predict_step(self, batch, batch_idx):
+  def predict_step(self, batch, batch_idx, z=None):
+    # use image to generate similar image
     x, _ = batch
-    mean_z, lgvar_z = self._get_mlv_encoder(x)
-    dist_z = Normal(mean_z, (lgvar_z/2).exp())
-    z = dist_z.sample()
+    assert x.shape[0] == 1, "Predict mode only accept batch size 1"
 
-    mean_xhat, lgvar_xhat = self._get_mlv_decoder(z)
-    dist_xhat = Normal(mean_xhat, (lgvar_xhat/2).exp())
-    xhat = dist_xhat.sample()
-    return x, xhat
+    if z == None:
+      mean_z, lgvar_z = self._get_mlv_encoder(x)
+      dist_z = Normal(mean_z, (lgvar_z/2).exp())
+      z = dist_z.sample().squeeze()
+    z = z.unsqueeze(0)
+    
+    xhat, _ = self._get_mlv_decoder(z)
+    return xhat.squeeze().detach()
+
+  def generate_Img(self, z=None):
+    # generate new image from Gaussian Noise
+    if z == None:
+      prior_z = Normal(self.zero_mean, self.one_std)
+      z = prior_z.sample()
+    z = z.unsqueeze(0)
+
+    xhat, _ = self._get_mlv_decoder(z)
+    return xhat.squeeze().detach()
 
   def configure_optimizers(self):
     return Optim.Adam(self.parameters(), lr=self.hparams.learning_rate)

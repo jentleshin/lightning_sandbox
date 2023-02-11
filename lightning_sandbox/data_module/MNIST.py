@@ -17,6 +17,7 @@ class MNIST (pl.LightningDataModule):
   def setup(self, stage=None):
     transform = transforms.Compose([
         transforms.ToTensor(),
+        transforms.Pad(2),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
     if stage == "fit" or stage == None:
@@ -24,6 +25,8 @@ class MNIST (pl.LightningDataModule):
       self.train_dataset, self.val_dataset = random_split(train_dataset, [55000,5000])
     if stage == "test" or stage == None:
       self.test_dataset = datasets.MNIST(root=self.data_dir, train=False, download=True, transform=transform)
+    if stage == "predict" or stage == None:
+      self.predict_dataset = datasets.MNIST(root=self.data_dir, train=False, download=True, transform=transform)
 
   def train_dataloader(self):
     return DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
@@ -31,4 +34,5 @@ class MNIST (pl.LightningDataModule):
     return DataLoader(dataset=self.val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
   def test_dataloader(self):
     return DataLoader(dataset=self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
-
+  def predict_dataloader(self):
+    return DataLoader(dataset=self.predict_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
