@@ -1,11 +1,11 @@
-seed_everything: 2234
+seed_everything: 22341
 trainer:
   max_epochs: 1000
   logger:
     class_path: TensorBoardLogger
     init_args:
       save_dir: '.'
-      name: 'logs/VAE_MNIST/fit_logs'
+      name: 'logs/VAE_MNIST_mse/fit_logs2'
       default_hp_metric: False
   callbacks:
     - class_path: ModelCheckpoint
@@ -22,6 +22,6 @@ data:
   batch_size: 512
   num_workers: 1
 model:
-  learning_rate: 2e-05
+  learning_rate: 0.0001445439770745928
   input_dim: 1
   latent_dim: 10

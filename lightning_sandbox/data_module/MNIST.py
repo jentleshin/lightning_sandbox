@@ -18,7 +18,7 @@ class MNIST (pl.LightningDataModule):
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Pad(2),
-        transforms.Normalize((0.1307,), (0.3081,))
+        transforms.Normalize((0.1000,), (0.2697,))
     ])
     if stage == "fit" or stage == None:
       train_dataset = datasets.MNIST(root=self.data_dir, train=True, download=True, transform=transform)

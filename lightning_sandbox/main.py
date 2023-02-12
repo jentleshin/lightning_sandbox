@@ -6,6 +6,8 @@ import numpy as np
 from module.FullyConnected3 import FullyConnected3
 from module.AutoEncoder import AutoEncoder
 from module.VAE import VAE
+from module.VAE_bce import VAE_bce
+from module.VAE_mse import VAE_mse
 
 # Data_Modules
 from data_module.MNIST import MNIST

@@ -32,7 +32,7 @@ class DecoderModulo (nn.Module):
     out = self.model(x)
     return out
 
-class VAE (pl.LightningModule):
+class VAE_bce (pl.LightningModule):
   def __init__(self, learning_rate:float, input_dim:int, latent_dim:int):
     super().__init__()
 
@@ -63,16 +63,20 @@ class VAE (pl.LightningModule):
       DecoderModulo(256,256,8),
       DecoderModulo(256,256,8),
     )
-    self.mean_decoder = nn.Sequential(
+    self.prob_decoder = nn.Sequential(
       DecoderModulo(256,256,8),
       nn.ConvTranspose2d(256, self.hparams.input_dim, kernel_size=4, stride=2, padding=1),
       nn.Sigmoid() # image should have range [0..1]
     )
-    self.lgvar_decoder = nn.Sequential(
-      DecoderModulo(256,256,8),
-      nn.ConvTranspose2d(256, self.hparams.input_dim, kernel_size=4, stride=2, padding=1),
-    )
-    
+    self._init_parameters()
+
+  def _init_parameters(self):
+        for module in self.children():
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.ConvTranspose2d):
+                nn.init.kaiming_normal_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+
   def _get_mlv_encoder(self, x):
     x = self.encoder(x)
     mean, lgvar = self.mean_encoder(x), self.lgvar_encoder(x)
@@ -80,29 +84,28 @@ class VAE (pl.LightningModule):
 
   def _get_mlv_decoder(self, x):
     x = self.decoder(x)
-    mean, lgvar = self.mean_decoder(x), self.lgvar_decoder(x)
-    return mean, lgvar
+    prob = self.prob_decoder(x)
+    return prob
 
   def _shared_step(self, batch, batch_idx):
     x, _ = batch
     batch_size = x.shape[0]
-    
+  
     mean_z, lgvar_z = self._get_mlv_encoder(x)
     dist_z = Normal(mean_z, (lgvar_z/2).exp())
     z = dist_z.rsample()
 
-    mean_xhat, lgvar_xhat = self._get_mlv_decoder(z)
-    dist_xhat = Normal(mean_xhat, (lgvar_xhat/2).exp())
-
+    prob_xhat = self._get_mlv_decoder(z)
+    
     # KL-Divergence
     prior_z = Normal(self.zero_mean, self.one_std)
     kl_term = kl_divergence(dist_z, prior_z).sum()
     
     # Negative log likelihood
-    nll_term = F.gaussian_nll_loss(mean_xhat, x, lgvar_xhat.exp(), eps=1e-6, reduction="sum") # mathematically stable version of nll_loss
-    
+    reconst_term = F.binary_cross_entropy(prob_xhat, x, reduction="sum")
+
     # Negative ELBO
-    n_ELBO = (kl_term + nll_term) / batch_size # loss per batch
+    n_ELBO = (kl_term + reconst_term) / batch_size # per batch
     return n_ELBO
 
   def on_train_start(self):
@@ -135,7 +138,7 @@ class VAE (pl.LightningModule):
       z = dist_z.sample().squeeze()
     z = z.unsqueeze(0)
     
-    xhat, _ = self._get_mlv_decoder(z)
+    xhat = self._get_mlv_decoder(z)
     return xhat.squeeze().detach()
 
   def generate_Img(self, z=None):
@@ -145,8 +148,19 @@ class VAE (pl.LightningModule):
       z = prior_z.sample()
     z = z.unsqueeze(0)
 
-    xhat, _ = self._get_mlv_decoder(z)
+    xhat = self._get_mlv_decoder(z)
     return xhat.squeeze().detach()
 
   def configure_optimizers(self):
-    return Optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+    optimizer = Optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+    lr_scheduler = Optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
+    return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
+
+
+
+
+
+
+
+
+
